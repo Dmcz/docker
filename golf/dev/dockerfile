@@ -1,0 +1,51 @@
+ARG UBUNTU_VERSION=24.04
+ARG PHP_VERSION=8.3
+ARG SWOOEL_VERISON=5.1.2
+
+FROM dmcz0/php:${PHP_VERSION}-dev-ubuntu-${UBUNTU_VERSION}-swoole-${SWOOEL_VERISON}
+
+ARG PHPY_VERSION=1.0.5
+ARG PYTHON_VERSION=3.11.9
+
+RUN set -ex \
+    && apt-get update \
+    && apt-get --no-install-recommends install -y libffi-dev libgl1-mesa-glx \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN set -ex \
+    && cd /tmp \
+    && curl -SL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" -o Python.tgz \
+    && tar -xvf Python.tgz \
+    && cd Python-${PYTHON_VERSION} \
+    && ./configure --prefix=/opt/python-${PYTHON_VERSION} --enable-optimizations --enable-shared \
+    && make -s -j$(nproc) \
+    && make install \
+    && ln -s /opt/python-${PYTHON_VERSION}/bin/python3 /usr/local/bin/python3 \
+    && echo "/opt/python-${PYTHON_VERSION}/lib" > /etc/ld.so.conf.d/python${PYTHON_VERSION}.conf \
+    && ldconfig \
+    && rm -rf /tmp/* /var/tmp/*
+
+ENV PATH="/opt/python-${PYTHON_VERSION}/bin:${PATH}"
+
+RUN set -ex \
+    && curl -SL https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
+    && /opt/python-${PYTHON_VERSION}/bin/python3 get-pip.py \
+    && ln -s /opt/python-${PYTHON_VERSION}/bin/pip3 /usr/local/bin/pip3 \
+    && rm -rf /tmp/* /var/tmp/*
+
+RUN set -ex \
+    && pip install opencv-python tensorflow
+
+RUN set -ex \
+    && cd /tmp \
+    && curl -SL "https://github.com/swoole/phpy/archive/refs/tags/${PHPY_VERSION}.tar.gz" -o phpy.tar.gz \
+    && mkdir -p phpy \
+    && tar -xf phpy.tar.gz -C phpy --strip-components=1 \
+    && ( \
+        cd phpy \
+        && phpize \
+        && ./configure CFLAGS="-fPIC" --with-python-config=/opt/python-${PYTHON_VERSION}/bin/python3-config \
+        && make -s -j$(nproc) && make install \
+    ) \
+    && echo "extension=phpy.so" > /etc/php/${PHP_VERSION}/cli/conf.d/50_phpy.ini \
+    && rm -rf /tmp/* /var/tmp/*

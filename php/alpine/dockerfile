@@ -1,0 +1,61 @@
+ARG ALPINE_VERSION=3.20
+
+FROM alpine:$ALPINE_VERSION
+
+LABEL maintainer="Dmcz <751662789@163.com>" version="1.0" license="MIT"
+
+ARG PHP_VERSION=8.3
+
+ENV PHP_VERSION=${PHP_VERSION}
+
+RUN set -ex \
+    && PHP_BUILD_VERSION=$(echo ${PHP_VERSION} | sed 's/\.//') \
+    && apk update \
+    && apk add --no-cache \
+    ca-certificates \
+    curl \
+    wget \
+    tar \
+    xz \
+    tzdata \
+    pcre \
+    ## install php
+    php${PHP_BUILD_VERSION} \
+    php${PHP_BUILD_VERSION}-bcmath \
+    php${PHP_BUILD_VERSION}-curl \
+    php${PHP_BUILD_VERSION}-ctype \
+    php${PHP_BUILD_VERSION}-dom \
+    php${PHP_BUILD_VERSION}-fileinfo \
+    php${PHP_BUILD_VERSION}-gd \
+    php${PHP_BUILD_VERSION}-iconv \
+    php${PHP_BUILD_VERSION}-mbstring \
+    php${PHP_BUILD_VERSION}-mysqlnd \
+    php${PHP_BUILD_VERSION}-openssl \
+    php${PHP_BUILD_VERSION}-pdo \
+    php${PHP_BUILD_VERSION}-pdo_mysql \
+    php${PHP_BUILD_VERSION}-phar \
+    php${PHP_BUILD_VERSION}-posix \
+    php${PHP_BUILD_VERSION}-redis \
+    php${PHP_BUILD_VERSION}-sockets \
+    php${PHP_BUILD_VERSION}-sodium \
+    php${PHP_BUILD_VERSION}-sysvshm \
+    php${PHP_BUILD_VERSION}-sysvmsg \
+    php${PHP_BUILD_VERSION}-sysvsem \
+    php${PHP_BUILD_VERSION}-simplexml \
+    php${PHP_BUILD_VERSION}-tokenizer \
+    php${PHP_BUILD_VERSION}-zip \
+    php${PHP_BUILD_VERSION}-zlib \
+    php${PHP_BUILD_VERSION}-xml \
+    php${PHP_BUILD_VERSION}-xmlreader \
+    php${PHP_BUILD_VERSION}-xmlwriter \
+    php${PHP_BUILD_VERSION}-pcntl \
+    php${PHP_BUILD_VERSION}-opcache \
+    && ln -sf /usr/bin/php${PHP_BUILD_VERSION} /usr/bin/php \
+    ## install composer
+    && cd /tmp \
+    && curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer \
+    && composer config -g repo.packagist composer https://mirrors.aliyun.com/composer/ \
+    ## clear
+    && apk del --purge *-dev \
+    && rm -rf /var/cache/apk/* /tmp/* /usr/share/man /usr/share/php*
