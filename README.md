@@ -2,6 +2,7 @@
 ## php alpine
 * dmcz0/php:8.3-alpine-3.20
 * dmcz0/php:8.3-alpine-3.20-swoole-5.1.3
+* dmcz0/php:8.3-alpine-3.20-swoole-5.1.4
 ## php dev
 * dmcz0/php:8.1-dev-ubuntu-22.04
 * dmcz0/php:8.2-dev-ubuntu-22.04
