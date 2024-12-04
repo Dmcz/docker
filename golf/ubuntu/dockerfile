@@ -1,0 +1,131 @@
+ARG UBUNTU_VERSION=24.04
+
+FROM ubuntu:${UBUNTU_VERSION} as builder
+
+LABEL maintainer="Dmcz <751662789@163.com>" version="1.0" license="MIT"
+
+ARG PHP_VERSION=8.3
+ARG SWOOLE_VERSION=5.1.3
+ARG PHPY_VERSION=1.0.5
+ARG PYTHON_VERSION=3.11.9
+
+RUN set -ex \
+    && apt-get update \
+    # 安装可清理的包和编译工具
+    && apt-get --no-install-recommends install -y \
+        software-properties-common \
+        curl \
+        g++ \
+        gcc \
+        make \
+        cmake \
+    # 安装 Swoole 依赖项
+    && apt-get --no-install-recommends install -y \
+        libcurl4-openssl-dev \
+        libpq-dev \
+        libbrotli-dev \
+        libc-ares-dev \
+    # 安装 Python 依赖项
+    && apt-get --no-install-recommends install -y \
+        libffi-dev \
+        libbz2-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        libgdbm-dev \
+        liblzma-dev \
+        libsqlite3-dev \
+        tk-dev \
+        uuid-dev \
+        libreadline-dev \
+        zlib1g-dev \
+        libnss3-dev \
+    # opencv 依赖
+        libgl1 \
+    # 添加 PHP 源
+    && add-apt-repository -y ppa:ondrej/php \
+    # 安装 PHP
+    && apt-get --no-install-recommends install -y \
+        php${PHP_VERSION}-cli \
+        php${PHP_VERSION}-dev \
+        php${PHP_VERSION}-common \
+        php${PHP_VERSION}-bcmath \
+        php${PHP_VERSION}-curl \
+        php${PHP_VERSION}-gd \
+        php${PHP_VERSION}-mbstring \
+        php${PHP_VERSION}-mysql \
+        php${PHP_VERSION}-redis \
+        php${PHP_VERSION}-xml \
+        php${PHP_VERSION}-zip \
+        php${PHP_VERSION}-opcache \
+    # 安装 Composer
+    && cd /tmp \
+    && curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer \
+    # 安装 Swoole
+    && cd /tmp \
+    && curl -SL "https://github.com/swoole/swoole-src/archive/v${SWOOLE_VERSION}.tar.gz" -o swoole.tar.gz \
+    && mkdir -p swoole \
+    && tar -xf swoole.tar.gz -C swoole --strip-components=1 \
+    && ( \
+        cd swoole \
+        && phpize \
+        && ./configure --enable-openssl --enable-swoole-curl --enable-cares --enable-swoole-pgsql \
+        && make -s -j$(nproc) && make install \
+    ) \
+    && echo "memory_limit=1G" > /etc/php/${PHP_VERSION}/cli/conf.d/00_default.ini \
+    && echo "opcache.enable_cli = 'On'" >> /etc/php/${PHP_VERSION}/cli/conf.d/00_opcache.ini \
+    && echo "extension=swoole.so" > /etc/php/${PHP_VERSION}/cli/conf.d/50_swoole.ini \
+    && echo "swoole.use_shortname = 'Off'" >> /etc/php/${PHP_VERSION}/cli/conf.d/50_swoole.ini \
+    # 安装 Python
+    && curl -SL "https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz" -o Python.tgz \
+    && mkdir -p python \
+    && tar -xvf Python.tgz -C python --strip-components=1 \
+    && ( \
+        cd python \
+        && ./configure --prefix=/opt/python-${PYTHON_VERSION} --enable-optimizations --enable-shared \
+        && make -s -j$(nproc) && make install \
+    ) \
+    && ln -s /opt/python-${PYTHON_VERSION}/bin/python3 /usr/local/bin/python3 \
+    && echo "/opt/python-${PYTHON_VERSION}/lib" > /etc/ld.so.conf.d/python${PYTHON_VERSION}.conf \
+    && ldconfig \
+    # 安装 pip
+    && curl -SL https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
+    && /opt/python-${PYTHON_VERSION}/bin/python3 get-pip.py \
+    && ln -s /opt/python-${PYTHON_VERSION}/bin/pip3 /usr/local/bin/pip3 \
+    && ln -s /opt/python-${PYTHON_VERSION}/bin/pip3 /usr/local/bin/pip \
+    # 安装 Python 模块
+    && pip install --upgrade pip \
+    && pip install numpy pandas scipy opencv-python \
+    # 安装 phpy
+    && curl -SL "https://github.com/swoole/phpy/archive/refs/tags/${PHPY_VERSION}.tar.gz" -o phpy.tar.gz \
+    #&& curl -SL "https://github.com/swoole/phpy/archive/refs/heads/main.tar.gz" -o phpy.tar.gz \
+    && mkdir -p phpy \
+    && tar -xf phpy.tar.gz -C phpy --strip-components=1 \
+    && ( \
+        cd phpy \
+        && phpize \
+        && ./configure CFLAGS="-fPIC" --with-python-config=/opt/python-${PYTHON_VERSION}/bin/python3-config \
+        && make -s -j$(nproc) && make install \
+    ) \
+    && echo "extension=phpy.so" > /etc/php/${PHP_VERSION}/cli/conf.d/50_phpy.ini \
+    # 清理不必要的包
+    && apt-get remove --purge --autoremove -y \
+        software-properties-common \
+        curl \
+        g++ \
+        gcc \
+        make \
+        cmake \
+        libcurl4-openssl-dev \
+        libffi-dev \
+        libbz2-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        libgdbm-dev \
+        liblzma-dev \
+        libsqlite3-dev \
+        tk-dev \
+        uuid-dev \
+        libreadline-dev \
+        libnss3-dev \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
