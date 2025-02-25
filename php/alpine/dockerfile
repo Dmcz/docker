@@ -11,15 +11,9 @@ ENV PHP_VERSION=${PHP_VERSION}
 RUN set -ex \
     && PHP_BUILD_VERSION=$(echo ${PHP_VERSION} | sed 's/\.//') \
     && apk update \
-    && apk add --no-cache \
-    ca-certificates \
-    curl \
-    wget \
-    tar \
-    xz \
-    tzdata \
-    pcre \
+    && apk add --no-cache ca-certificates curl wget tar xz tzdata pcre \
     ## install php
+    && apk add --no-cache \
     php${PHP_BUILD_VERSION} \
     php${PHP_BUILD_VERSION}-bcmath \
     php${PHP_BUILD_VERSION}-curl \

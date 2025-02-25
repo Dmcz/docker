@@ -1,17 +1,54 @@
 ARG ALPINE_VERSION=3.20
+
+FROM alpine:$ALPINE_VERSION
+
 ARG PHP_VERSION=8.3
-
-FROM dmcz0/php:${PHP_VERSION}-alpine-${ALPINE_VERSION}
-
-ARG SWOOLE_VERSION=5.1.3
+ARG SWOOLE_VERSION=5.1.7
 
 ENV SWOOLE_VERSION=${SWOOLE_VERSION}
 
 RUN set -ex \
     && PHP_BUILD_VERSION=$(echo ${PHP_VERSION} | sed 's/\.//') \
     && apk update \
-    && apk add --no-cache libstdc++ openssl c-ares-dev libpq-dev \
+    && apk add --no-cache ca-certificates curl wget tar xz tzdata pcre libstdc++ openssl c-ares-dev libpq-dev \
     && apk add --no-cache --virtual .build-deps autoconf dpkg-dev dpkg file g++ gcc libc-dev make php${PHP_BUILD_VERSION}-dev php${PHP_BUILD_VERSION}-pear pkgconf re2c pcre-dev pcre2-dev zlib-dev libtool automake libaio-dev openssl-dev curl-dev \
+    ## install php
+    && apk add --no-cache \
+    php${PHP_BUILD_VERSION} \
+    php${PHP_BUILD_VERSION}-bcmath \
+    php${PHP_BUILD_VERSION}-curl \
+    php${PHP_BUILD_VERSION}-ctype \
+    php${PHP_BUILD_VERSION}-dom \
+    php${PHP_BUILD_VERSION}-fileinfo \
+    php${PHP_BUILD_VERSION}-gd \
+    php${PHP_BUILD_VERSION}-iconv \
+    php${PHP_BUILD_VERSION}-mbstring \
+    php${PHP_BUILD_VERSION}-mysqlnd \
+    php${PHP_BUILD_VERSION}-openssl \
+    php${PHP_BUILD_VERSION}-pdo \
+    php${PHP_BUILD_VERSION}-pdo_mysql \
+    php${PHP_BUILD_VERSION}-phar \
+    php${PHP_BUILD_VERSION}-posix \
+    php${PHP_BUILD_VERSION}-redis \
+    php${PHP_BUILD_VERSION}-sockets \
+    php${PHP_BUILD_VERSION}-sodium \
+    php${PHP_BUILD_VERSION}-sysvshm \
+    php${PHP_BUILD_VERSION}-sysvmsg \
+    php${PHP_BUILD_VERSION}-sysvsem \
+    php${PHP_BUILD_VERSION}-simplexml \
+    php${PHP_BUILD_VERSION}-tokenizer \
+    php${PHP_BUILD_VERSION}-zip \
+    php${PHP_BUILD_VERSION}-zlib \
+    php${PHP_BUILD_VERSION}-xml \
+    php${PHP_BUILD_VERSION}-xmlreader \
+    php${PHP_BUILD_VERSION}-xmlwriter \
+    php${PHP_BUILD_VERSION}-pcntl \
+    php${PHP_BUILD_VERSION}-opcache \
+    && ln -sf /usr/bin/php${PHP_BUILD_VERSION} /usr/bin/php \
+    ## install composer
+    && cd /tmp \
+    && curl -sS https://getcomposer.org/installer | php \
+    && mv composer.phar /usr/local/bin/composer \
     ## install swoole
     && cd /tmp \
     && curl -SL "https://github.com/swoole/swoole-src/archive/v${SWOOLE_VERSION}.tar.gz" -o swoole.tar.gz \
@@ -31,5 +68,6 @@ RUN set -ex \
     && echo "extension=swoole.so" > /etc/php${PHP_BUILD_VERSION}/conf.d/50_swoole.ini \
     && echo "swoole.use_shortname = 'Off'" >> /etc/php${PHP_BUILD_VERSION}/conf.d/50_swoole.ini \
     ## clear
+    && apk del --purge *-dev \
     && apk del .build-deps \
     && rm -rf /var/cache/apk/* /tmp/* /usr/share/man /usr/share/php* /usr/local/bin/php*
